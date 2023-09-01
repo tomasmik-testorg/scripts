@@ -1,0 +1,274 @@
+name: Forker release
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+    secrets:
+      GH_PAT:
+        required: true
+      GPG_PRIVATE_KEY:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+      GORELEASER_KEY:
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  project:
+    runs-on:
+      labels: forked-provider-builder
+
+    outputs:
+      goversion: ${{ steps.go.outputs.version }}
+      gomod: ${{ steps.go.outputs.gomod }}
+
+    steps:
+      - name: Checkout provider
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Determine Go version and modules support
+        id: go
+        shell: bash
+        run: |
+          curl -L -o /tmp/yq https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_darwin_amd64 && chmod +x /tmp/yq
+          echo "0.0.0" > /tmp/go-version
+          (test -e ".go-version" && cat .go-version | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
+          (test -e "go-version" && cat go-version | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
+          (test -e ".travis.yml" && cat .travis.yml | yq '.go[0]' | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
+          (test -e "go.mod" && cat go.mod | grep -E '^go' | cut -d ' ' -f 2 | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
+          (cat README.md | grep Go | grep -oP '\K\d+\.\d+' | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
+          cat /tmp/go-version
+          echo "version=$(cat /tmp/go-version | grep -P '^\d' | sort -V -r | head -1)" >> "$GITHUB_OUTPUT"
+          echo "gomod=$(test -e go.mod && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+
+  provider:
+    runs-on:
+      labels: forked-provider-builder
+    needs: [project]
+
+    outputs:
+      dir: ${{ steps.dir.outputs.value }}
+      gopath: ${{ steps.gopath.outputs.value }}
+
+    steps:
+      - name: Checkout forker
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_PAT }}
+          repository: opentffoundation/scripts
+          path: forker
+
+      - name: Determine name
+        id: name
+        shell: bash
+        run: |
+          echo "name=$(echo $GITHUB_REPOSITORY | cut -d / -f 2)" >> "$GITHUB_OUTPUT"
+
+      - name: Determine dir
+        id: dir
+        shell: bash
+        run: |
+          ls -l ${{ github.workspace }}/forker
+          dir=$(grep ${{ steps.name.outputs.name }}_${{ inputs.tag }} ${{ github.workspace }}/forker/project_dir.override || true | head -1 | cut -d : -f 2 | tr -d '\n')
+          echo "value=$(test "${{ needs.project.outputs.gomod }}" = "yes" && echo provider || echo "go/src/github.com/${dir:-terraform-providers}/${{ steps.name.outputs.name }}")" >> "$GITHUB_OUTPUT"
+
+      - name: Determine GOPATH
+        id: gopath
+        shell: bash
+        run: |
+          echo "value=${{ needs.project.outputs.gomod == 'yes' && '/home/runner/go' || '${GITHUB_WORKSPACE}/go'}}" >> "$GITHUB_OUTPUT"
+
+  build:
+    strategy:
+      matrix:
+        GOOS: ["linux", "windows", "darwin"]
+        GOARCH: ["386", "amd64", "arm", "arm64"]
+        exclude:
+          - GOOS: darwin
+            GOARCH: "386"
+          - GOOS: darwin
+            GOARCH: "arm"
+    runs-on:
+      labels: forked-provider-builder
+    needs: [project, provider]
+    steps:
+      - name: Checkout forker
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_PAT }}
+          repository: opentffoundation/scripts
+          path: forker
+
+      - name: Checkout provider
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          path: ${{ needs.provider.outputs.dir }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ needs.project.outputs.goversion }}
+
+      - name: Check GOOS/GOARCH support
+        id: dist
+        run: echo "support=$(go tool dist list | grep -q "^${{ matrix.GOOS }}/${{ matrix.GOARCH }}$" && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bzr
+
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - id: cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ needs.provider.outputs.dir }}/dist/${{ matrix.GOOS }}_${{ matrix.GOARCH }}
+          key: ${{ matrix.GOOS }}-${{ matrix.GOARCH }}-${{ inputs.tag }}
+
+      - name: Run goreleaser (GOPATH)
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && needs.project.outputs.gomod != 'yes' && steps.dist.outputs.support == 'yes' }}
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          distribution: goreleaser-pro
+          version: nightly
+          args: release --clean --split --timeout 120m --config ${{ github.workspace }}/forker/goreleaser_v1.yaml
+          workdir: ${{ needs.provider.outputs.dir }}
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          GORELEASER_CURRENT_TAG: ${{ inputs.tag }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOPATH: ${{ needs.provider.outputs.gopath }}
+          GGOOS: ${{ matrix.GOOS }}
+          GGOARCH: ${{ matrix.GOARCH }}
+
+      - name: Run goreleaser (gomod)
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && needs.project.outputs.gomod == 'yes' && steps.dist.outputs.support == 'yes' }}
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          distribution: goreleaser-pro
+          version: nightly
+          args: release --clean --split --timeout 120m --config ${{ github.workspace }}/forker/${{ (startsWith(needs.project.outputs.goversion, '1.11') || startsWith(needs.project.outputs.goversion, '1.12') || startsWith(needs.project.outputs.goversion, '1.13') || startsWith(needs.project.outputs.goversion, '1.14') || startsWith(needs.project.outputs.goversion, '1.15')) && 'goreleaser_v2.yaml' || 'goreleaser_v3.yaml' }}
+          workdir: ${{ needs.provider.outputs.dir }}
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          GORELEASER_CURRENT_TAG: ${{ inputs.tag }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GGOOS: ${{ matrix.GOOS }}
+          GGOARCH: ${{ matrix.GOARCH }}
+
+  release:
+    runs-on:
+      labels: forked-provider-builder
+    needs: [project, provider, build]
+
+    steps:
+      - name: Checkout provider
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          path: ${{ needs.provider.outputs.dir }}
+
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ needs.provider.outputs.dir }}/dist/linux_386
+          key: linux-386-${{ inputs.tag }}
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ needs.provider.outputs.dir }}/dist/linux_amd64
+          key: linux-amd64-${{ inputs.tag }}
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ needs.provider.outputs.dir }}/dist/linux_arm
+          key: linux-arm-${{ inputs.tag }}
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ needs.provider.outputs.dir }}/dist/linux_arm64
+          key: linux-arm64-${{ inputs.tag }}
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ needs.provider.outputs.dir }}/dist/windows_386
+          key: windows-386-${{ inputs.tag }}
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ needs.provider.outputs.dir }}/dist/windows_amd64
+          key: windows-amd64-${{ inputs.tag }}
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ needs.provider.outputs.dir }}/dist/windows_arm
+          key: windows-arm-${{ inputs.tag }}
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ needs.provider.outputs.dir }}/dist/windows_arm64
+          key: windows-arm64-${{ inputs.tag }}
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ needs.provider.outputs.dir }}/dist/darwin_amd64
+          key: darwin-amd64-${{ inputs.tag }}
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ needs.provider.outputs.dir }}/dist/darwin_arm64
+          key: darwin-arm64-${{ inputs.tag }}
+
+      - name: Run goreleaser (GOPATH)
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && needs.project.outputs.gomod != 'yes' }}
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          distribution: goreleaser-pro
+          version: nightly
+          args: continue --merge --timeout 120m
+          workdir: ${{ needs.provider.outputs.dir }}
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          GORELEASER_CURRENT_TAG: ${{ inputs.tag }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOPATH: ${{ needs.provider.outputs.gopath }}
+
+      - name: Run goreleaser (gomod)
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && needs.project.outputs.gomod == 'yes' }}
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          distribution: goreleaser-pro
+          version: nightly
+          args: continue --merge --timeout 120m
+          workdir: ${{ needs.provider.outputs.dir }}
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          GORELEASER_CURRENT_TAG: ${{ inputs.tag }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
