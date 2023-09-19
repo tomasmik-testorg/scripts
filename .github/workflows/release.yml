@@ -124,11 +124,13 @@ jobs:
           echo "ignore=$(grep -q "^${{ needs.provider.outputs.name }}_${{ inputs.tag }}_${{ matrix.GOOS }}_${{ matrix.GOARCH }}$" ${{ github.workspace }}/forker/dist_ignore && echo yes || echo no)" >> "$GITHUB_OUTPUT"
 
       - name: Install packages
+        if: ${{ steps.dist.outputs.support == 'yes' && steps.dist.outputs.ignore == 'no' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y bzr
 
       - name: Import GPG key
+        if: ${{ steps.dist.outputs.support == 'yes' && steps.dist.outputs.ignore == 'no' }}
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v5
         with:
@@ -136,6 +138,7 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - id: cache
+        if: ${{ steps.dist.outputs.support == 'yes' && steps.dist.outputs.ignore == 'no' }}
         uses: actions/cache@v3
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/${{ matrix.GOOS }}_${{ matrix.GOARCH }}
