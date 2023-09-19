@@ -232,9 +232,13 @@ jobs:
           key: windows-arm-${{ inputs.tag }}
 
       - uses: actions/cache@v3
+        id: cache_windows_arm64
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/windows_arm64
           key: windows-arm64-${{ inputs.tag }}
+
+      - if: ${{ steps.cache_windows_arm64.outputs.cache-hit != 'true' }}
+        run: mkdir "${{ needs.provider.outputs.dir }}/dist/windows_arm64"
 
       - uses: actions/cache@v3
         with:
