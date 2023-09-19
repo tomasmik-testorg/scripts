@@ -234,7 +234,7 @@ jobs:
 
       - if: ${{ steps.cache_windows_arm.outputs.cache-hit != 'true' }}
         run: |
-          mkdir -p "${{ needs.provider.outputs.dir }}/dist/windows_arm
+          mkdir -p "${{ needs.provider.outputs.dir }}/dist/windows_arm"
           echo "[]" > "${{ needs.provider.outputs.dir }}/dist/windows_arm/artifacts.json"
 
       - uses: actions/cache@v3
