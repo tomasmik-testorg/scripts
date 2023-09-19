@@ -227,9 +227,15 @@ jobs:
           key: windows-amd64-${{ inputs.tag }}
 
       - uses: actions/cache@v3
+        id: cache_windows_arm
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/windows_arm
           key: windows-arm-${{ inputs.tag }}
+
+      - if: ${{ steps.cache_windows_arm.outputs.cache-hit != 'true' }}
+        run: |
+          mkdir -p "${{ needs.provider.outputs.dir }}/dist/windows_arm
+          echo "[]" > "${{ needs.provider.outputs.dir }}/dist/windows_arm/artifacts.json"
 
       - uses: actions/cache@v3
         id: cache_windows_arm64
@@ -238,7 +244,9 @@ jobs:
           key: windows-arm64-${{ inputs.tag }}
 
       - if: ${{ steps.cache_windows_arm64.outputs.cache-hit != 'true' }}
-        run: mkdir "${{ needs.provider.outputs.dir }}/dist/windows_arm64"
+        run: |
+          mkdir -p "${{ needs.provider.outputs.dir }}/dist/windows_arm64"
+          echo "[]" > "${{ needs.provider.outputs.dir }}/dist/windows_arm64/artifacts.json"
 
       - uses: actions/cache@v3
         with:
