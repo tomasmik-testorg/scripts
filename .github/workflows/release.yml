@@ -246,6 +246,10 @@ jobs:
           path: ${{ needs.provider.outputs.dir }}/dist/darwin_arm64
           key: darwin-arm64-${{ inputs.tag }}
 
+      - run: ls -l ${{ needs.provider.outputs.dir }}/dist
+
+      - run: find ${{ needs.provider.outputs.dir }}/dist
+
       - name: Run goreleaser (GOPATH)
         if: ${{ steps.cache.outputs.cache-hit != 'true' && needs.project.outputs.gomod != 'yes' }}
         uses: goreleaser/goreleaser-action@v4
