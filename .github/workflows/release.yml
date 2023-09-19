@@ -264,6 +264,8 @@ jobs:
 
       - run: cat ${{ needs.provider.outputs.dir }}/dist/linux_amd64/artifacts.json
 
+      - run: cat ${{ needs.provider.outputs.dir }}/dist/darwin_amd64/ctx.json
+
       - name: Run goreleaser (GOPATH)
         if: ${{ steps.cache.outputs.cache-hit != 'true' && needs.project.outputs.gomod != 'yes' }}
         uses: goreleaser/goreleaser-action@v4
