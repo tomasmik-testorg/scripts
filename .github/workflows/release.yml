@@ -53,6 +53,7 @@ jobs:
     needs: [project]
 
     outputs:
+      name: ${{ steps.name.outputs.name }}
       dir: ${{ steps.dir.outputs.value }}
       gopath: ${{ steps.gopath.outputs.value }}
 
