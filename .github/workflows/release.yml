@@ -254,6 +254,8 @@ jobs:
 
       - run: find ${{ needs.provider.outputs.dir }}/dist
 
+      - run: cat ${{ needs.provider.outputs.dir }}/dist/linux_amd64/artifacts.json
+
       - name: Run goreleaser (GOPATH)
         if: ${{ steps.cache.outputs.cache-hit != 'true' && needs.project.outputs.gomod != 'yes' }}
         uses: goreleaser/goreleaser-action@v4
