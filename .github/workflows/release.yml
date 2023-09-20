@@ -76,7 +76,7 @@ jobs:
         shell: bash
         run: |
           ls -l ${{ github.workspace }}/forker
-          dir=$(grep ${{ steps.name.outputs.name }}_${{ inputs.tag }} ${{ github.workspace }}/forker/project_dir.override || true | head -1 | cut -d : -f 2 | tr -d '\n')
+          dir=$((grep ${{ steps.name.outputs.name }}_${{ inputs.tag }} ${{ github.workspace }}/forker/project_dir.override || true) | head -1 | cut -d ':' -f 2 | tr -d '\n')
           echo "value=$(test "${{ needs.project.outputs.gomod }}" = "yes" && echo provider || echo "go/src/github.com/${dir:-terraform-providers}/${{ steps.name.outputs.name }}")" >> "$GITHUB_OUTPUT"
 
       - name: Determine GOPATH
