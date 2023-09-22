@@ -21,6 +21,9 @@ builds:
       - -s -w -X main.Version={{.Version}}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
+gomod:
+  mod: readonly
+
 archives:
   - format: zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
