@@ -162,6 +162,14 @@ jobs:
           path: ${{ needs.provider.outputs.dir }}/dist/${{ matrix.GOOS }}_${{ matrix.GOARCH }}
           key: ${{ matrix.GOOS }}-${{ matrix.GOARCH }}-${{ inputs.tag }}
 
+      - run: |
+          test -d "${{ needs.provider.outputs.dir }}/vendor" && yq -i '(.builds[0].flags = ["-mod=vendor"]) | (.gomod.mod = "vendor")' "forker/goreleaser_v2.yaml"
+          cat "forker/goreleaser_v2.yaml"
+
+      - run: |
+          test -d "${{ needs.provider.outputs.dir }}/vendor" && yq -i '(.builds[0].flags = ["-mod=vendor"]) | (.gomod.mod = "vendor")' "forker/goreleaser_v3.yaml"
+          cat "forker/goreleaser_v3.yaml"
+
       - name: Run goreleaser (GOPATH)
         if: ${{ steps.cache.outputs.cache-hit != 'true' && needs.project.outputs.gomod != 'yes' && steps.dist.outputs.support == 'yes' && steps.dist.outputs.ignore == 'no' }}
         uses: goreleaser/goreleaser-action@v4
