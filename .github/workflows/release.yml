@@ -33,6 +33,14 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ inputs.tag }}
+          path: provider
+
+      - name: Checkout forker
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_PAT }}
+          repository: opentffoundation/scripts
+          path: forker
 
       - name: Determine name
         id: name
@@ -46,14 +54,14 @@ jobs:
         run: |
           curl -L -o /tmp/yq https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_darwin_amd64 && chmod +x /tmp/yq
           echo "0.0.0" > /tmp/go-version
-          (test -e ".go-version" && cat .go-version | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
-          (test -e "go-version" && cat go-version | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
-          (test -e ".travis.yml" && cat .travis.yml | yq '.go[0]' | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
-          (test -e "go.mod" && cat go.mod | grep -E '^go' | cut -d ' ' -f 2 | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
-          (cat README.md | grep Go | grep -oP '\K\d+\.\d+' | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
+          (test -e "provider/.go-version" && cat "provider/.go-version" | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
+          (test -e "provider/go-version" && cat "provider/go-version" | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
+          (test -e "provider/.travis.yml" && cat "provider/.travis.yml" | yq '.go[0]' | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
+          (test -e "provider/go.mod" && cat "provider/go.mod" | grep -E '^go' | cut -d ' ' -f 2 | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
+          (cat "provider/README.md" | grep Go | grep -oP '\K\d+\.\d+' | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
           cat /tmp/go-version
           echo "version=$(cat /tmp/go-version | grep -P '^\d' | sort -V -r | head -1)" >> "$GITHUB_OUTPUT"
-          echo "gomod=$(grep -q ${{ steps.name.outputs.name }}_${{ inputs.tag }} && echo no || $(test -e go.mod && echo yes || echo no))" >> "$GITHUB_OUTPUT"
+          echo "gomod=$(grep -q ${{ steps.name.outputs.name }}_${{ inputs.tag }} forker/gomod.disable && echo no || $(test -e go.mod && echo yes || echo no))" >> "$GITHUB_OUTPUT"
 
   provider:
     runs-on: ubuntu-latest
