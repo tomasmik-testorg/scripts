@@ -61,7 +61,8 @@ jobs:
           (cat "provider/README.md" | grep Go | grep -oP '\K\d+\.\d+' | cat >> /tmp/go-version && echo >> /tmp/go-version) || true
           cat /tmp/go-version
           echo "version=$(cat /tmp/go-version | grep -P '^\d' | sort -V -r | head -1)" >> "$GITHUB_OUTPUT"
-          echo "gomod=${$(grep -q ${{ steps.name.outputs.name }}_${{ inputs.tag }} forker/gomod.disable && echo no || true):-$(test -e provider/go.mod && echo yes || echo no)}" >> "$GITHUB_OUTPUT"
+          gomod_disable=$(grep -q ${{ steps.name.outputs.name }}_${{ inputs.tag }} forker/gomod.disable && echo no || true)
+          echo "gomod=${gomod_disable:-$(test -e provider/go.mod && echo yes || echo no)}" >> "$GITHUB_OUTPUT"
 
       - run: |
           echo "name: ${{ steps.name.outputs.name }}"
