@@ -226,63 +226,63 @@ jobs:
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/linux_386
           key: linux-386-${{ inputs.tag }}
+          fail-on-cache-miss: true
 
       - uses: actions/cache@v3
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/linux_amd64
           key: linux-amd64-${{ inputs.tag }}
+          fail-on-cache-miss: true
 
       - uses: actions/cache@v3
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/linux_arm
           key: linux-arm-${{ inputs.tag }}
+          fail-on-cache-miss: true
 
       - uses: actions/cache@v3
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/linux_arm64
           key: linux-arm64-${{ inputs.tag }}
+          fail-on-cache-miss: true
 
       - uses: actions/cache@v3
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/windows_386
           key: windows-386-${{ inputs.tag }}
+          fail-on-cache-miss: true
 
       - uses: actions/cache@v3
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/windows_amd64
           key: windows-amd64-${{ inputs.tag }}
+          fail-on-cache-miss: true
 
       - uses: actions/cache@v3
         id: cache_windows_arm
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/windows_arm
           key: windows-arm-${{ inputs.tag }}
-
-      - if: ${{ steps.cache_windows_arm.outputs.cache-hit != 'true' }}
-        run: |
-          mkdir -p "${{ needs.provider.outputs.dir }}/dist/windows_arm"
-          echo "[]" > "${{ needs.provider.outputs.dir }}/dist/windows_arm/artifacts.json"
+          fail-on-cache-miss: true
 
       - uses: actions/cache@v3
         id: cache_windows_arm64
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/windows_arm64
           key: windows-arm64-${{ inputs.tag }}
-
-      - if: ${{ steps.cache_windows_arm64.outputs.cache-hit != 'true' }}
-        run: |
-          mkdir -p "${{ needs.provider.outputs.dir }}/dist/windows_arm64"
-          echo "[]" > "${{ needs.provider.outputs.dir }}/dist/windows_arm64/artifacts.json"
+          fail-on-cache-miss: true
 
       - uses: actions/cache@v3
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/darwin_amd64
           key: darwin-amd64-${{ inputs.tag }}
+          fail-on-cache-miss: true
 
       - uses: actions/cache@v3
         with:
           path: ${{ needs.provider.outputs.dir }}/dist/darwin_arm64
           key: darwin-arm64-${{ inputs.tag }}
+          fail-on-cache-miss: true
 
       - run: ls -l ${{ needs.provider.outputs.dir }}/dist
 
