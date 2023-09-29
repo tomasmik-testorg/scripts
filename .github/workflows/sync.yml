@@ -11,7 +11,7 @@ permissions:
   actions: write
 
 jobs:
-  trigger:
+  sync:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,3 +26,5 @@ jobs:
           git remote add upstream "git@github.com:${parent_owner}/${parent_name}.git"
           git fetch --tags --force upstream
           git push --tags origin
+        env:
+          GH_TOKEN: ${{ github.token }}
