@@ -1,0 +1,28 @@
+name: Sync fork tags
+
+on:
+  workflow_call:
+    secrets:
+      GH_PAT:
+        required: true
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch: 0
+
+      - name: Sync tags
+        run: |
+          parent_owner=$(gh repo view $GITHUB_REPOSITORY --json parent --jq '.parent.owner.login')
+          parent_name=$(gh repo view $GITHUB_REPOSITORY --json parent --jq '.parent.name')
+          git remote add upstream "git@github.com:${parent_owner}/${parent_name}.git"
+          git fetch --tags --force upstream
+          git push --tags origin
