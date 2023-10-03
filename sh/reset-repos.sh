@@ -43,7 +43,7 @@ while IFS= read -r FORK_URL; do
 
   echo "Committing workflow changes to $FORK_URL"
 
-  cp -r "$WORKFLOW_DIR/." .
+  cp -r "$WORKFLOW_DIR/." ./.github/workflows/
   git add .
   git commit -m "Apply GitHub workflow changes"
 
