@@ -152,8 +152,8 @@ jobs:
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v5
         with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          gpg_private_key: ${{ secrets.RSA_PRIVATE_KEY }}
+          passphrase: ${{ secrets.RSA_PASSPHRASE }}
 
       - id: cache
         if: ${{ steps.dist.outputs.support == 'yes' && steps.dist.outputs.ignore == 'no' }}
@@ -219,8 +219,8 @@ jobs:
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v5
         with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          gpg_private_key: ${{ secrets.RSA_PRIVATE_KEY }}
+          passphrase: ${{ secrets.RSA_PASSPHRASE }}
 
       - uses: actions/cache@v3
         with:
