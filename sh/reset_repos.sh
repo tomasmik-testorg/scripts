@@ -21,7 +21,7 @@ if [ ! -f "$URL_FILE" ]; then
 fi
 
 while IFS= read -r FORK_URL; do
-  UPSTREAM_URL=$(echo "$FORK_URL" | sed 's/opentofu/hashicorp/')
+  UPSTREAM_URL=$(echo "$FORK_URL" | sed 's/opentofu/terraform-providers/')
 
   echo "Got fork URL: $FORK_URL"
   echo "Got upstream URL: $UPSTREAM_URL"
@@ -42,6 +42,10 @@ while IFS= read -r FORK_URL; do
   git reset --hard upstream/"$MAIN_BRANCH"
 
   echo "Committing workflow changes to $FORK_URL"
+
+  if [ ! -d ./.github/workflows ]; then
+    mkdir -p ./.github/workflows
+  fi
 
   cp -r "$WORKFLOW_DIR/." ./.github/workflows/
   git add .
