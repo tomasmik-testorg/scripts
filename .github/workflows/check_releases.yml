@@ -1,0 +1,71 @@
+name: Check Releases
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  check-releases:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Fetch repositories
+      id: fetch-repositories
+      run: |
+        found_count=0
+        not_found_count=0
+        page=1
+        per_page=100
+
+        while true; do
+          # Fetch repositories using the GitHub API with pagination
+          repositories=$(curl -s -H "Authorization: token ${{ secrets.GH_PAT }}" \
+            "https://api.github.com/orgs/opentofu/repos?page=$page&per_page=$per_page")
+
+          # Check if there are no more repositories
+          if [ -z "$repositories" ]; then
+            break
+          fi
+
+          # Filter repositories that have names starting with "terraform-provider-"
+          filtered_repositories=$(echo "$repositories" | jq -r '.[] | select(.name | startswith("terraform-provider-")) | .full_name')
+
+          for repo in $filtered_repositories; do
+            OWNER="$(echo "$repo" | cut -d'/' -f1)"
+            REPO="$(echo "$repo" | cut -d'/' -f2)"
+            echo "Checking releases for $OWNER/$REPO..."
+
+            # Make the API request to list tags with the PAT in the header
+            tags=$(curl -s -H "Authorization: token ${{ secrets.GH_PAT }}" \
+                            "https://api.github.com/repos/${OWNER}/${REPO}/tags" | jq -r '.[].name')
+
+            for tag in $tags; do
+              # Make the API request to list releases for the tag with the PAT in the header
+              releases=$(curl -s -H "Authorization: token ${{ secrets.GH_PAT }}" \
+                                "https://api.github.com/repos/${OWNER}/${REPO}/releases/tags/${tag}" | jq -r '.tag_name')
+
+              # Check if a release exists for the tag
+              if [ -n "$releases" ]; then
+                echo "Release found for tag: $tag in $OWNER/$REPO"
+                found_count=$((found_count+1))
+              else
+                echo "No release found for tag: $tag in $OWNER/$REPO"
+                not_found_count=$((not_found_count+1))
+              fi
+            done
+            echo "Done checking releases for $OWNER/$REPO"
+          done
+
+          page=$((page+1))
+        done
+
+        echo "Found releases: $found_count"
+        echo "Not found releases: $not_found_count"
+
+        # Check if more than one release was not found, and if so, exit with a non-zero status code
+        if [ "$not_found_count" -gt 1 ]; then
+          echo "More than one release was not found. Failing the action."
+          exit 1
+        fi
+
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
