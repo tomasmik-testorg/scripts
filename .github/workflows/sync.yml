@@ -19,6 +19,9 @@ jobs:
         with:
           fetch-depth: 0
           fetch: 0
+          # This is required for both pushing tags/changes
+          # and triggering the actions later. We cannot update or trigger workflows
+          # with the regular github.token so we must use a PAT.
           token: ${{ secrets.GH_PAT }}
 
       - name: Setup upstream
