@@ -12,7 +12,7 @@ on:
       GPG_PRIVATE_KEY:
         required: true
       GPG_PASSPHRASE:
-        required: true
+        required: false
       GORELEASER_KEY:
         required: true
 
@@ -114,6 +114,7 @@ jobs:
           - GOOS: darwin
             GOARCH: "arm"
     runs-on: ubuntu-latest
+    environment: gpg
     needs: [project, provider]
     steps:
       - name: Checkout forker
@@ -153,7 +154,6 @@ jobs:
         uses: crazy-max/ghaction-import-gpg@v5
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - id: cache
         if: ${{ steps.dist.outputs.support == 'yes' && steps.dist.outputs.ignore == 'no' }}
@@ -205,6 +205,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
+    environment: gpg
     needs: [project, provider, build]
 
     steps:
@@ -220,7 +221,6 @@ jobs:
         uses: crazy-max/ghaction-import-gpg@v5
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - uses: actions/cache@v3
         with:
