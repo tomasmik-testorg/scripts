@@ -147,19 +147,20 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y bzr
-          
-      - name: Decode GPG private key
-        id: decode_gpg_private_key
-        uses: akiojin/decode-base64-github-action@v1.0.0
-        with:
-          base64: ${{ secrets.GPG_PRIVATE_KEY }}
 
       - name: Import GPG key
         if: ${{ steps.dist.outputs.support == 'yes' && steps.dist.outputs.ignore == 'no' }}
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v5
-        with:
-         gpg_private_key: ${{ steps.decode_gpg_private_key.outputs.decoded }}
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode | gpg --import
+          FINGERPRINT=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{sub(/.*\//, "", $2); print $2; exit}')
+          echo "::set-output name=fingerprint::${FINGERPRINT}"
+        env:
+          GPG_TTY: /dev/ttys000  # Set the GPG_TTY to avoid issues with pinentry
+          
+      - name: Use GPG key fingerprint
+        run: |
+          echo "GPG Fingerprint: ${{ steps.import_gpg.outputs.fingerprint }}"
 
       - id: cache
         if: ${{ steps.dist.outputs.support == 'yes' && steps.dist.outputs.ignore == 'no' }}
@@ -222,17 +223,19 @@ jobs:
           fetch-depth: 0
           path: ${{ needs.provider.outputs.dir }}
           
-      - name: Decode GPG private key
-        id: decode_gpg_private_key
-        uses: akiojin/decode-base64-github-action@v1.0.0
-        with:
-          base64: ${{ secrets.GPG_PRIVATE_KEY }}
-          
+
       - name: Import GPG key
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v5
-        with:
-           gpg_private_key: ${{ steps.decode_gpg_private_key.outputs.decoded }}
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode | gpg --import
+          FINGERPRINT=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{sub(/.*\//, "", $2); print $2; exit}')
+          echo "::set-output name=fingerprint::${FINGERPRINT}"
+        env:
+          GPG_TTY: /dev/ttys000  # Set the GPG_TTY to avoid issues with pinentry
+          
+      - name: Use GPG key fingerprint
+        run: |
+          echo "GPG Fingerprint: ${{ steps.import_gpg.outputs.fingerprint }}"
 
       - uses: actions/cache@v3
         with:
